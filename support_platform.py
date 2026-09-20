@@ -252,6 +252,20 @@ class MultiAgentSupportPlatform:
         knowledge_artifacts = self.knowledge_retriever.retrieve(profile)
         follow_up = self.information_gatherer.gather(profile, request)
         if follow_up is not None:
+            if self._requires_human_handoff(request):
+                escalation = self.escalation_agent.escalate(
+                    profile=profile,
+                    request=request,
+                    reason="The request matched a known workflow but requires immediate specialist handling.",
+                )
+                return SupportOutcome(
+                    status="escalated",
+                    intent=profile.name,
+                    knowledge_artifacts=knowledge_artifacts,
+                    recommended_actions=[],
+                    escalation=escalation,
+                )
+
             return SupportOutcome(
                 status="needs_information",
                 intent=profile.name,

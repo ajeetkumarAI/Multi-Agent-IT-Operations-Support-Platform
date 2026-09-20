@@ -88,6 +88,21 @@ class MultiAgentSupportPlatformTests(unittest.TestCase):
         self.assertEqual(outcome.escalation.team, "General Support Queue")
         self.assertIn("triage", outcome.escalation.expertise_required)
 
+    def test_escalates_urgent_known_intent_even_when_information_is_missing(self) -> None:
+        outcome = self.platform.process_request(
+            SupportRequest(
+                customer_id="CUST-600",
+                summary="Account locked",
+                details="Customer cannot login and needs immediate support.",
+                metadata={"account_id": "ACCT-99", "severity": "critical"},
+            )
+        )
+
+        self.assertEqual(outcome.status, "escalated")
+        self.assertEqual(outcome.intent, "account_unlock")
+        self.assertEqual(outcome.escalation.team, "Digital Banking Support")
+        self.assertIsNone(outcome.follow_up)
+
 
 if __name__ == "__main__":
     unittest.main()
