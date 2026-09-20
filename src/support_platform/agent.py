@@ -1,10 +1,10 @@
 """Main orchestration agent for the support platform."""
 
-from .agents import _is_truthy_flag
 from .models import FollowUpRequest, HumanEscalation, SupportOutcome, SupportRequest
 from .corpus import CorpusQA, CorpusRecord, CorpusRepository
 from .document_qa import DocumentStore
 from .tools import AgenticRAGTool, FAQTool, MetadataCorpusTool, TextToSQLTool, ToolAnswer
+from .utils import is_truthy_flag
 from .subagents import (
     EscalationAgent,
     InputValidationAgent,
@@ -159,7 +159,7 @@ class MainOrchestratorAgent:
 
     @staticmethod
     def _requires_human_handoff(request: SupportRequest) -> bool:
-        return _is_truthy_flag(request.metadata.get("requires_human")) or str(
+        return is_truthy_flag(request.metadata.get("requires_human")) or str(
             request.metadata.get("severity", "")
         ).lower() in {
             "high", "critical",

@@ -7,12 +7,7 @@ from .models import (
     KnowledgeArtifact,
     SupportRequest,
 )
-
-
-def _is_truthy_flag(value: object) -> bool:
-    if isinstance(value, str):
-        return value.strip().lower() in {"1", "true", "yes", "y"}
-    return bool(value)
+from .utils import is_truthy_flag
 
 
 class UserValidationAgent:
@@ -202,7 +197,7 @@ class ResolutionAgent:
             return None
         if str(request.metadata.get("severity", "")).lower() in {"high", "critical"}:
             return None
-        if _is_truthy_flag(request.metadata.get("requires_human")):
+        if is_truthy_flag(request.metadata.get("requires_human")):
             return None
         return list(profile.resolution_actions)
 
@@ -224,7 +219,7 @@ class EscalationAgent:
             "Escalate when the workflow requires specialist judgment or regulated review.",
             "Preserve retrieved context so the receiving team can continue without re-triage.",
         ]
-        if _is_truthy_flag(request.metadata.get("requires_human")):
+        if is_truthy_flag(request.metadata.get("requires_human")):
             business_rules.append("Customer or system explicitly requested human review.")
         if str(request.metadata.get("severity", "")).lower() in {"high", "critical"}:
             business_rules.append("High-severity requests must be handled by the specialist desk.")
