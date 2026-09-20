@@ -1,0 +1,204 @@
+import unittest
+
+from support_platform import MultiAgentSupportPlatform, SupportRequest
+
+
+class MultiAgentSupportPlatformTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.platform = MultiAgentSupportPlatform()
+
+    def test_resolves_account_unlock_request_when_required_context_exists(self) -> None:
+        outcome = self.platform.process_request(
+            SupportRequest(
+                customer_id="CUST-100",
+                summary="Unable to unlock mobile banking account",
+                details="Customer cannot login after too many failed attempts and needs access restored.",
+                metadata={"account_id": "ACCT-1", "channel": "mobile"},
+            )
+        )
+
+        self.assertEqual(outcome.status, "resolved")
+        self.assertEqual(outcome.intent, "account_unlock")
+        self.assertTrue(outcome.knowledge_artifacts)
+        self.assertIn("Initiate the self-service account unlock workflow.", outcome.recommended_actions)
+        self.assertIsNone(outcome.escalation)
+
+    def test_requests_missing_information_for_incomplete_loan_closure_request(self) -> None:
+        outcome = self.platform.process_request(
+            SupportRequest(
+                customer_id="CUST-200",
+                summary="Need loan closure",
+                details="Please help me close my loan account.",
+                metadata={"loan_id": "LN-9"},
+            )
+        )
+
+        self.assertEqual(outcome.status, "needs_information")
+        self.assertEqual(outcome.intent, "loan_closure")
+        self.assertEqual(outcome.follow_up.missing_fields, ["closure_date"])
+        self.assertIn("closure_date", outcome.follow_up.prompt)
+
+    def test_escalates_card_dispute_to_specialist_team(self) -> None:
+        outcome = self.platform.process_request(
+            SupportRequest(
+                customer_id="CUST-300",
+                summary="Unauthorized transaction dispute",
+                details="A card transaction was not performed by the customer and needs investigation.",
+                metadata={
+                    "account_id": "ACCT-7",
+                    "transaction_id": "TXN-55",
+                    "transaction_date": "2026-09-19",
+                },
+            )
+        )
+
+        self.assertEqual(outcome.status, "escalated")
+        self.assertEqual(outcome.intent, "card_dispute")
+        self.assertEqual(outcome.escalation.team, "Fraud and Disputes Desk")
+        self.assertIn("card disputes", outcome.escalation.expertise_required)
+        self.assertTrue(outcome.knowledge_artifacts)
+
+    def test_requests_more_detail_for_unknown_intent(self) -> None:
+        outcome = self.platform.process_request(
+            SupportRequest(
+                customer_id="CUST-400",
+                summary="Need help",
+                details="Customer asks for support but the product and issue are unclear.",
+                metadata={},
+            )
+        )
+
+        self.assertEqual(outcome.status, "needs_information")
+        self.assertEqual(outcome.intent, "unknown")
+        self.assertEqual(outcome.follow_up.missing_fields, ["intent_details"])
+        self.assertIn("impacted product", outcome.follow_up.prompt)
+
+    def test_escalates_high_severity_unknown_intent_to_human_triage(self) -> None:
+        outcome = self.platform.process_request(
+            SupportRequest(
+                customer_id="CUST-500",
+                summary="System issue",
+                details="Urgent help needed but the case details are still incomplete.",
+                metadata={"severity": "critical"},
+            )
+        )
+
+        self.assertEqual(outcome.status, "escalated")
+        self.assertEqual(outcome.intent, "unknown")
+        self.assertEqual(outcome.escalation.team, "General Support Queue")
+        self.assertIn("triage", outcome.escalation.expertise_required)
+
+    def test_escalates_urgent_known_intent_even_when_information_is_missing(self) -> None:
+        outcome = self.platform.process_request(
+            SupportRequest(
+                customer_id="CUST-600",
+                summary="Account locked",
+                details="Customer cannot login and needs immediate support.",
+                metadata={"account_id": "ACCT-99", "severity": "critical"},
+            )
+        )
+
+        self.assertEqual(outcome.status, "escalated")
+        self.assertEqual(outcome.intent, "account_unlock")
+        self.assertEqual(outcome.escalation.team, "Digital Banking Support")
+        self.assertEqual(outcome.follow_up.missing_fields, ["channel"])
+
+    def test_treats_zero_value_metadata_as_present(self) -> None:
+        outcome = self.platform.process_request(
+            SupportRequest(
+                customer_id="CUST-700",
+                summary="Cannot login because account is locked",
+                details="The customer needs help unlocking internet banking access.",
+                metadata={"account_id": 0, "channel": "internet"},
+            )
+        )
+
+        self.assertEqual(outcome.status, "resolved")
+        self.assertEqual(outcome.intent, "account_unlock")
+
+    def test_treats_blank_required_text_metadata_as_missing(self) -> None:
+        outcome = self.platform.process_request(
+            SupportRequest(
+                customer_id="CUST-750",
+                summary="Unable to unlock mobile banking account",
+                details="Customer cannot login after too many failed attempts and needs access restored.",
+                metadata={"account_id": "", "channel": "mobile"},
+            )
+        )
+
+        self.assertEqual(outcome.status, "needs_information")
+        self.assertEqual(outcome.intent, "account_unlock")
+        self.assertIn("account_id", outcome.follow_up.missing_fields)
+
+    def test_requests_clarification_when_multiple_intents_match_equally(self) -> None:
+        outcome = self.platform.process_request(
+            SupportRequest(
+                customer_id="CUST-800",
+                summary="Cannot login after unauthorized transaction dispute",
+                details="The account is locked, login failed, and there is a fraudulent transaction to dispute.",
+                metadata={},
+            )
+        )
+
+        self.assertEqual(outcome.status, "needs_information")
+        self.assertEqual(outcome.intent, "unknown")
+        self.assertIn("impacted product", outcome.follow_up.prompt)
+
+    def test_escalates_critical_ambiguous_intent_to_human_triage(self) -> None:
+        outcome = self.platform.process_request(
+            SupportRequest(
+                customer_id="CUST-850",
+                summary="Cannot login after unauthorized transaction dispute",
+                details="The account is locked, login failed, and there is a fraudulent transaction to dispute.",
+                metadata={"severity": "critical"},
+            )
+        )
+
+        self.assertEqual(outcome.status, "escalated")
+        self.assertEqual(outcome.intent, "unknown")
+        self.assertEqual(outcome.escalation.team, "General Support Queue")
+
+    def test_escalates_known_intent_when_human_review_is_requested(self) -> None:
+        outcome = self.platform.process_request(
+            SupportRequest(
+                customer_id="CUST-900",
+                summary="Unable to unlock mobile banking account",
+                details="Customer cannot login after too many failed attempts and wants an agent to review.",
+                metadata={"account_id": "ACCT-10", "channel": "mobile", "requires_human": True},
+            )
+        )
+
+        self.assertEqual(outcome.status, "escalated")
+        self.assertEqual(outcome.intent, "account_unlock")
+        self.assertEqual(outcome.escalation.team, "Digital Banking Support")
+
+    def test_escalates_unknown_intent_when_human_review_is_requested(self) -> None:
+        outcome = self.platform.process_request(
+            SupportRequest(
+                customer_id="CUST-950",
+                summary="Need help",
+                details="Customer wants a human specialist to look at an unclear issue.",
+                metadata={"requires_human": True},
+            )
+        )
+
+        self.assertEqual(outcome.status, "escalated")
+        self.assertEqual(outcome.intent, "unknown")
+        self.assertEqual(outcome.escalation.team, "General Support Queue")
+
+    def test_does_not_escalate_when_requires_human_flag_is_false_string(self) -> None:
+        outcome = self.platform.process_request(
+            SupportRequest(
+                customer_id="CUST-975",
+                summary="Unable to unlock mobile banking account",
+                details="Customer cannot login after too many failed attempts and needs access restored.",
+                metadata={"account_id": "ACCT-11", "channel": "mobile", "requires_human": "false"},
+            )
+        )
+
+        self.assertEqual(outcome.status, "resolved")
+        self.assertEqual(outcome.intent, "account_unlock")
+
+
+if __name__ == "__main__":
+    unittest.main()
