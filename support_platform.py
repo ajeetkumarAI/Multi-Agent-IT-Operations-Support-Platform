@@ -201,7 +201,7 @@ class ResolutionAgent:
         if profile.requires_human_handoff:
             return None
 
-        if str(request.metadata.get("severity", "")).lower() in {"high", "critical"}:
+        if str(request.metadata.get("severity", "")).lower() == "critical":
             return None
 
         if request.metadata.get("requires_human"):
@@ -234,8 +234,8 @@ class EscalationAgent:
         ]
         if request.metadata.get("requires_human"):
             business_rules.append("Customer or system explicitly requested human review.")
-        if str(request.metadata.get("severity", "")).lower() in {"high", "critical"}:
-            business_rules.append("High-severity requests must be handled by the specialist desk.")
+        if str(request.metadata.get("severity", "")).lower() == "critical":
+            business_rules.append("Critical-severity requests must be handled by the specialist desk.")
 
         return HumanEscalation(
             team=profile.escalation_team,
@@ -324,7 +324,7 @@ class MultiAgentSupportPlatform:
         if request.metadata.get("requires_human"):
             return True
 
-        return str(request.metadata.get("severity", "")).lower() in {"high", "critical"}
+        return str(request.metadata.get("severity", "")).lower() == "critical"
 
     @staticmethod
     def _build_unknown_outcome(
