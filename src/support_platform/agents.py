@@ -9,6 +9,12 @@ from .models import (
 )
 
 
+def _is_truthy_flag(value: object) -> bool:
+    if isinstance(value, str):
+        return value.strip().lower() in {"1", "true", "yes", "y"}
+    return bool(value)
+
+
 class UserValidationAgent:
     def validate(self, request: SupportRequest) -> FollowUpRequest | None:
         if not request.customer_id.strip():
@@ -145,7 +151,12 @@ class InputValidationAgent:
         missing_fields = [
             field_name
             for field_name in profile.required_fields
-            if field_name not in request.metadata or request.metadata.get(field_name) is None
+            if field_name not in request.metadata
+            or request.metadata.get(field_name) is None
+            or (
+                isinstance(request.metadata.get(field_name), str)
+                and not request.metadata.get(field_name).strip()
+            )
         ]
         if not missing_fields:
             return None
@@ -191,7 +202,7 @@ class ResolutionAgent:
             return None
         if str(request.metadata.get("severity", "")).lower() in {"high", "critical"}:
             return None
-        if request.metadata.get("requires_human"):
+        if _is_truthy_flag(request.metadata.get("requires_human")):
             return None
         return list(profile.resolution_actions)
 
@@ -213,7 +224,7 @@ class EscalationAgent:
             "Escalate when the workflow requires specialist judgment or regulated review.",
             "Preserve retrieved context so the receiving team can continue without re-triage.",
         ]
-        if request.metadata.get("requires_human"):
+        if _is_truthy_flag(request.metadata.get("requires_human")):
             business_rules.append("Customer or system explicitly requested human review.")
         if str(request.metadata.get("severity", "")).lower() in {"high", "critical"}:
             business_rules.append("High-severity requests must be handled by the specialist desk.")

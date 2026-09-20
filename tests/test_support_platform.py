@@ -125,6 +125,20 @@ class MultiAgentSupportPlatformTests(unittest.TestCase):
         self.assertEqual(outcome.status, "resolved")
         self.assertEqual(outcome.intent, "account_unlock")
 
+    def test_treats_blank_required_text_metadata_as_missing(self) -> None:
+        outcome = self.platform.process_request(
+            SupportRequest(
+                customer_id="CUST-750",
+                summary="Unable to unlock mobile banking account",
+                details="Customer cannot login after too many failed attempts and needs access restored.",
+                metadata={"account_id": "", "channel": "mobile"},
+            )
+        )
+
+        self.assertEqual(outcome.status, "needs_information")
+        self.assertEqual(outcome.intent, "account_unlock")
+        self.assertIn("account_id", outcome.follow_up.missing_fields)
+
     def test_requests_clarification_when_multiple_intents_match_equally(self) -> None:
         outcome = self.platform.process_request(
             SupportRequest(
@@ -169,6 +183,61 @@ class MultiAgentSupportPlatformTests(unittest.TestCase):
         self.assertEqual(outcome.status, "needs_confirmation")
         self.assertEqual(outcome.intent, "account_unlock")
         self.assertIn("Is this understanding correct?", outcome.follow_up.prompt)
+
+    def test_escalates_critical_ambiguous_intent_to_human_triage(self) -> None:
+        outcome = self.platform.process_request(
+            SupportRequest(
+                customer_id="CUST-850",
+                summary="Cannot login after unauthorized transaction dispute",
+                details="The account is locked, login failed, and there is a fraudulent transaction to dispute.",
+                metadata={"severity": "critical"},
+            )
+        )
+
+        self.assertEqual(outcome.status, "escalated")
+        self.assertEqual(outcome.intent, "unknown")
+        self.assertEqual(outcome.escalation.team, "General Support Queue")
+
+    def test_escalates_known_intent_when_human_review_is_requested(self) -> None:
+        outcome = self.platform.process_request(
+            SupportRequest(
+                customer_id="CUST-900",
+                summary="Unable to unlock mobile banking account",
+                details="Customer cannot login after too many failed attempts and wants an agent to review.",
+                metadata={"account_id": "ACCT-10", "channel": "mobile", "requires_human": True},
+            )
+        )
+
+        self.assertEqual(outcome.status, "escalated")
+        self.assertEqual(outcome.intent, "account_unlock")
+        self.assertEqual(outcome.escalation.team, "Digital Banking Support")
+
+    def test_escalates_unknown_intent_when_human_review_is_requested(self) -> None:
+        outcome = self.platform.process_request(
+            SupportRequest(
+                customer_id="CUST-950",
+                summary="Need help",
+                details="Customer wants a human specialist to look at an unclear issue.",
+                metadata={"requires_human": True},
+            )
+        )
+
+        self.assertEqual(outcome.status, "escalated")
+        self.assertEqual(outcome.intent, "unknown")
+        self.assertEqual(outcome.escalation.team, "General Support Queue")
+
+    def test_does_not_escalate_when_requires_human_flag_is_false_string(self) -> None:
+        outcome = self.platform.process_request(
+            SupportRequest(
+                customer_id="CUST-975",
+                summary="Unable to unlock mobile banking account",
+                details="Customer cannot login after too many failed attempts and needs access restored.",
+                metadata={"account_id": "ACCT-11", "channel": "mobile", "requires_human": "false"},
+            )
+        )
+
+        self.assertEqual(outcome.status, "resolved")
+        self.assertEqual(outcome.intent, "account_unlock")
 
     def test_confirmed_intent_feedback_selects_the_requested_workflow(self) -> None:
         outcome = self.platform.process_request(
@@ -426,7 +495,6 @@ class MultiAgentSupportPlatformTests(unittest.TestCase):
         repository.close()
 
         self.assertEqual(results, ["SAFEWORD-001"])
-
 
 if __name__ == "__main__":
     unittest.main()
