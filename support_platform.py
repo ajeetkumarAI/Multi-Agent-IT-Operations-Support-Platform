@@ -294,6 +294,7 @@ class MultiAgentSupportPlatform:
                     intent=profile.name,
                     knowledge_artifacts=knowledge_artifacts,
                     recommended_actions=[],
+                    follow_up=follow_up,
                     escalation=escalation,
                 )
 

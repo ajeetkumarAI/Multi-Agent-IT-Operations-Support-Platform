@@ -101,7 +101,7 @@ class MultiAgentSupportPlatformTests(unittest.TestCase):
         self.assertEqual(outcome.status, "escalated")
         self.assertEqual(outcome.intent, "account_unlock")
         self.assertEqual(outcome.escalation.team, "Digital Banking Support")
-        self.assertIsNone(outcome.follow_up)
+        self.assertEqual(outcome.follow_up.missing_fields, ["channel"])
 
     def test_treats_zero_value_metadata_as_present(self) -> None:
         outcome = self.platform.process_request(
