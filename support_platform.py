@@ -57,6 +57,13 @@ class IntentProfile:
 
 
 class IntentClassifierAgent:
+    """Maps a request to the best matching intent profile.
+
+    Each profile uses keyword hits for coarse matching, confidence for stable
+    ranking among equally specific matches, and requires_human_handoff to mark
+    workflows that should be routed to specialist teams instead of auto-resolved.
+    """
+
     def __init__(self) -> None:
         self._profiles = (
             IntentProfile(
@@ -255,8 +262,9 @@ class MultiAgentSupportPlatform:
 
     def process_request(self, request: SupportRequest) -> SupportOutcome:
         profile = self.intent_classifier.classify(request)
+        requires_human_handoff = self._requires_human_handoff(request)
         if profile is None:
-            if self._requires_human_handoff(request):
+            if requires_human_handoff:
                 return self._build_unknown_outcome(
                     status="escalated",
                     escalation=self.escalation_agent.escalate(
@@ -275,7 +283,7 @@ class MultiAgentSupportPlatform:
         knowledge_artifacts = self.knowledge_retriever.retrieve(profile)
         follow_up = self.information_gatherer.gather(profile, request)
         if follow_up is not None:
-            if self._requires_human_handoff(request):
+            if requires_human_handoff:
                 escalation = self.escalation_agent.escalate(
                     profile=profile,
                     request=request,
