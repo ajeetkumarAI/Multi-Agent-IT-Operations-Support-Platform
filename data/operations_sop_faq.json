@@ -1,0 +1,61 @@
+{
+  "schema_version": "1.0",
+  "description": "Bank-neutral enterprise IT operations SOP and FAQ extensions. Replace contacts and source links with approved institution metadata before production use.",
+  "records": [
+    {
+      "record_id": "FAQ-SAFEWORD-002",
+      "category": "access",
+      "title": "SafeWord token locked after failed attempts",
+      "keywords": ["safeword", "token", "locked", "failed", "unlock", "activate"],
+      "answer": "If a SafeWord token is locked, stop retrying OTP values. Verify the user identity and token serial in IAM, then use the approved token unlock or re-enrollment process. If self-service recovery fails, raise a CMP request to IAM Operations with the error time and token status.",
+      "procedure": ["Verify identity and token serial", "Check lock status in IAM", "Use approved unlock or re-enrollment", "Raise CMP to IAM Operations if recovery fails"],
+      "poc": "IAM Operations POC: iam-operations@example.com",
+      "approval": "Replacement tokens require manager approval and identity verification.",
+      "source": "faq://iam/safeword-locked-token"
+    },
+    {
+      "record_id": "FAQ-CMP-002",
+      "category": "process",
+      "title": "CMP request information checklist",
+      "keywords": ["cmp", "request", "raise", "checklist", "evidence", "ticket", "incident"],
+      "answer": "A useful CMP request includes the application and environment, user ID, exact error, timestamp, business impact, screenshots or sanitized logs, requested completion date, and the affected support queue.",
+      "procedure": ["Select the correct CMP catalog item", "Describe the issue and business impact", "Attach sanitized evidence", "Add required-by date", "Submit to the application support queue", "Record the CMP number"],
+      "poc": "Service Desk POC: servicedesk@example.com",
+      "approval": "Access, production, and change requests follow the application owner's approval route.",
+      "source": "faq://service-management/cmp-information-checklist"
+    },
+    {
+      "record_id": "FAQ-POC-003",
+      "category": "ownership",
+      "title": "Who is the application approval POC",
+      "keywords": ["poc", "application", "approval", "approver", "owner", "contact", "who"],
+      "answer": "Use the service catalog to identify the application owner and technical support queue. The line manager is the normal first approver; privileged or production access also requires application-owner approval and may require control-owner approval.",
+      "procedure": ["Search the service catalog by application and environment", "Identify the application owner", "Obtain line-manager approval", "Obtain application-owner approval for privileged or production access"],
+      "poc": "Service Catalog POC: service-catalog@example.com",
+      "approval": "Never bypass the approval chain; confirm the required approvers in the current service catalog record.",
+      "source": "faq://governance/application-approval-poc"
+    },
+    {
+      "record_id": "FAQ-INSTALL-002",
+      "category": "installation",
+      "title": "Application installation not available in software catalog",
+      "keywords": ["install", "installation", "software", "catalog", "download", "application", "missing"],
+      "answer": "Install only from the managed software catalog. If the package is missing, do not use a public download link; raise a CMP service request with the application name, business justification, device ID, operating system, and required-by date.",
+      "procedure": ["Search the managed software catalog", "Confirm the approved package and version", "Raise CMP if the package is absent", "Wait for endpoint approval before elevated installation"],
+      "poc": "Endpoint Support POC: endpoint-support@example.com",
+      "approval": "Elevated installation requires endpoint-admin approval and approved software validation.",
+      "source": "faq://endpoint/missing-software-catalog-package"
+    },
+    {
+      "record_id": "FAQ-ISSUE-002",
+      "category": "troubleshooting",
+      "title": "Application issue triage questions",
+      "keywords": ["issue", "problem", "error", "resolve", "fix", "support", "question", "application"],
+      "answer": "Before raising a ticket, capture what the user was trying to do, the application and environment, exact error text, timestamp and timezone, frequency, recent changes, business impact, and whether other users are affected.",
+      "procedure": ["Capture exact error and timestamp", "Confirm application and environment", "Check whether the issue affects other users", "Retry only the documented safe step", "Raise CMP with sanitized evidence if unresolved"],
+      "poc": "Service Desk POC: servicedesk@example.com",
+      "approval": "The support queue determines whether owner, change, or emergency approval is required.",
+      "source": "faq://service-management/application-issue-triage-checklist"
+    }
+  ]
+}
