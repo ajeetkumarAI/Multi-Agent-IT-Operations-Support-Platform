@@ -121,19 +121,27 @@ class IntentClassifierAgent:
 
     def classify(self, request: SupportRequest) -> IntentProfile | None:
         content = f"{request.summary} {request.details}".lower()
-        matches: list[tuple[int, float, IntentProfile]] = []
+        matches: list[tuple[int, float, float, IntentProfile]] = []
         for profile in self._profiles:
             match_count = sum(1 for keyword in profile.keywords if keyword in content)
             if match_count:
-                matches.append((match_count, profile.confidence, profile))
+                match_ratio = match_count / len(profile.keywords)
+                matches.append((match_count, match_ratio, profile.confidence, profile))
         if not matches:
             return None
 
-        top_match_count, top_confidence, top_profile = max(matches, key=lambda item: (item[0], item[1]))
+        top_match_count, top_match_ratio, top_confidence, top_profile = max(
+            matches,
+            key=lambda item: (item[0], item[1], item[2]),
+        )
         top_matches = [
             profile
-            for match_count, confidence, profile in matches
-            if match_count == top_match_count and confidence == top_confidence
+            for match_count, match_ratio, confidence, profile in matches
+            if (
+                match_count == top_match_count
+                and match_ratio == top_match_ratio
+                and confidence == top_confidence
+            )
         ]
         if len(top_matches) > 1:
             return None
@@ -155,7 +163,7 @@ class InformationGatheringAgent:
         missing_fields = [
             field_name
             for field_name in profile.required_fields
-            if field_name not in request.metadata or request.metadata.get(field_name) is None
+            if self._is_missing_value(request.metadata, field_name)
         ]
         if not missing_fields:
             return None
@@ -168,6 +176,17 @@ class InformationGatheringAgent:
                 + "."
             ),
         )
+
+    @staticmethod
+    def _is_missing_value(metadata: dict[str, Any], field_name: str) -> bool:
+        if field_name not in metadata:
+            return True
+
+        value = metadata.get(field_name)
+        if value is None:
+            return True
+
+        return isinstance(value, str) and not value.strip()
 
 
 class KnowledgeRetrievalAgent:
