@@ -114,7 +114,7 @@ class IntentClassifierAgent:
                 ),
                 escalation_team="Fraud and Disputes Desk",
                 expertise_required=("card disputes", "fraud review"),
-                confidence=0.74,
+                confidence=0.92,
                 requires_human_handoff=True,
             ),
         )
@@ -129,11 +129,11 @@ class IntentClassifierAgent:
         if not matches:
             return None
 
-        top_match_count, _, top_profile = max(matches, key=lambda item: (item[0], item[1]))
+        top_match_count, top_confidence, top_profile = max(matches, key=lambda item: (item[0], item[1]))
         top_matches = [
             profile
             for match_count, confidence, profile in matches
-            if match_count == top_match_count
+            if match_count == top_match_count and confidence == top_confidence
         ]
         if len(top_matches) > 1:
             return None
