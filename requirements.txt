@@ -1,0 +1,5 @@
+langgraph>=1.0.6
+langchain-openai>=0.3.0
+streamlit>=1.54.0
+pypdf>=5.0.0
+python-docx>=1.1.0
