@@ -225,30 +225,39 @@ class MultiAgentSupportPlatform:
 
     def process_request(self, request: SupportRequest) -> SupportOutcome:
         profile = self.intent_classifier.classify(request)
-        follow_up = self.information_gatherer.gather(profile, request)
-        knowledge_artifacts = self.knowledge_retriever.retrieve(profile)
+        if profile is None:
+            if self._requires_human_handoff(request):
+                escalation = self.escalation_agent.escalate(
+                    profile=None,
+                    request=request,
+                    reason="The request could not be classified with enough confidence for automated handling.",
+                )
+                return SupportOutcome(
+                    status="escalated",
+                    intent="unknown",
+                    knowledge_artifacts=[],
+                    recommended_actions=[],
+                    escalation=escalation,
+                )
 
-        if follow_up is not None:
+            follow_up = self.information_gatherer.gather(profile, request)
             return SupportOutcome(
                 status="needs_information",
-                intent=profile.name if profile else "unknown",
-                knowledge_artifacts=knowledge_artifacts,
+                intent="unknown",
+                knowledge_artifacts=[],
                 recommended_actions=[],
                 follow_up=follow_up,
             )
 
-        if profile is None:
-            escalation = self.escalation_agent.escalate(
-                profile=None,
-                request=request,
-                reason="The request could not be classified with enough confidence for automated handling.",
-            )
+        knowledge_artifacts = self.knowledge_retriever.retrieve(profile)
+        follow_up = self.information_gatherer.gather(profile, request)
+        if follow_up is not None:
             return SupportOutcome(
-                status="escalated",
-                intent="unknown",
-                knowledge_artifacts=[],
+                status="needs_information",
+                intent=profile.name,
+                knowledge_artifacts=knowledge_artifacts,
                 recommended_actions=[],
-                escalation=escalation,
+                follow_up=follow_up,
             )
 
         resolution = self.resolution_agent.resolve(profile, request)
@@ -272,3 +281,10 @@ class MultiAgentSupportPlatform:
             recommended_actions=[],
             escalation=escalation,
         )
+
+    @staticmethod
+    def _requires_human_handoff(request: SupportRequest) -> bool:
+        if request.metadata.get("requires_human"):
+            return True
+
+        return str(request.metadata.get("severity", "")).lower() in {"high", "critical"}

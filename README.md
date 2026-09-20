@@ -3,7 +3,7 @@ Built a multi-agent AI platform for BFSI support operations that classifies cust
 
 ## Included workflow
 
-The repository now includes a minimal Python implementation in `/home/runner/work/Multi-Agent-IT-Operations-Support-Platform/Multi-Agent-IT-Operations-Support-Platform/support_platform.py` with specialized agents for:
+The repository now includes a minimal Python implementation in `support_platform.py` with specialized agents for:
 
 - intent classification
 - missing-information follow-up
@@ -14,6 +14,5 @@ The repository now includes a minimal Python implementation in `/home/runner/wor
 ## Run tests
 
 ```bash
-cd /home/runner/work/Multi-Agent-IT-Operations-Support-Platform/Multi-Agent-IT-Operations-Support-Platform
 python -m unittest discover -s tests
 ```

@@ -58,6 +58,36 @@ class MultiAgentSupportPlatformTests(unittest.TestCase):
         self.assertIn("card disputes", outcome.escalation.expertise_required)
         self.assertTrue(outcome.knowledge_artifacts)
 
+    def test_requests_more_detail_for_unknown_intent(self) -> None:
+        outcome = self.platform.process_request(
+            SupportRequest(
+                customer_id="CUST-400",
+                summary="Need help",
+                details="Customer asks for support but the product and issue are unclear.",
+                metadata={},
+            )
+        )
+
+        self.assertEqual(outcome.status, "needs_information")
+        self.assertEqual(outcome.intent, "unknown")
+        self.assertEqual(outcome.follow_up.missing_fields, ["intent_details"])
+        self.assertIn("impacted product", outcome.follow_up.prompt)
+
+    def test_escalates_high_severity_unknown_intent_to_human_triage(self) -> None:
+        outcome = self.platform.process_request(
+            SupportRequest(
+                customer_id="CUST-500",
+                summary="System issue",
+                details="Urgent help needed but the case details are still incomplete.",
+                metadata={"severity": "critical"},
+            )
+        )
+
+        self.assertEqual(outcome.status, "escalated")
+        self.assertEqual(outcome.intent, "unknown")
+        self.assertEqual(outcome.escalation.team, "General Support Queue")
+        self.assertIn("triage", outcome.escalation.expertise_required)
+
 
 if __name__ == "__main__":
     unittest.main()
