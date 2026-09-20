@@ -103,6 +103,33 @@ class MultiAgentSupportPlatformTests(unittest.TestCase):
         self.assertEqual(outcome.escalation.team, "Digital Banking Support")
         self.assertIsNone(outcome.follow_up)
 
+    def test_treats_zero_value_metadata_as_present(self) -> None:
+        outcome = self.platform.process_request(
+            SupportRequest(
+                customer_id="CUST-700",
+                summary="Cannot login because account is locked",
+                details="The customer needs help unlocking internet banking access.",
+                metadata={"account_id": 0, "channel": "internet"},
+            )
+        )
+
+        self.assertEqual(outcome.status, "resolved")
+        self.assertEqual(outcome.intent, "account_unlock")
+
+    def test_requests_clarification_when_multiple_intents_match_equally(self) -> None:
+        outcome = self.platform.process_request(
+            SupportRequest(
+                customer_id="CUST-800",
+                summary="Cannot login after unauthorized transaction dispute",
+                details="The account is locked, login failed, and there is a fraudulent transaction to dispute.",
+                metadata={},
+            )
+        )
+
+        self.assertEqual(outcome.status, "needs_information")
+        self.assertEqual(outcome.intent, "unknown")
+        self.assertIn("impacted product", outcome.follow_up.prompt)
+
 
 if __name__ == "__main__":
     unittest.main()

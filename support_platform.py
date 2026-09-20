@@ -121,13 +121,24 @@ class IntentClassifierAgent:
 
     def classify(self, request: SupportRequest) -> IntentProfile | None:
         content = f"{request.summary} {request.details}".lower()
-        matches: list[IntentProfile] = []
+        matches: list[tuple[int, float, IntentProfile]] = []
         for profile in self._profiles:
-            if any(keyword in content for keyword in profile.keywords):
-                matches.append(profile)
+            match_count = sum(1 for keyword in profile.keywords if keyword in content)
+            if match_count:
+                matches.append((match_count, profile.confidence, profile))
         if not matches:
             return None
-        return max(matches, key=lambda profile: profile.confidence)
+
+        top_match_count, _, top_profile = max(matches, key=lambda item: (item[0], item[1]))
+        top_matches = [
+            profile
+            for match_count, confidence, profile in matches
+            if match_count == top_match_count
+        ]
+        if len(top_matches) > 1:
+            return None
+
+        return top_profile
 
 
 class InformationGatheringAgent:
@@ -144,7 +155,7 @@ class InformationGatheringAgent:
         missing_fields = [
             field_name
             for field_name in profile.required_fields
-            if not request.metadata.get(field_name)
+            if field_name not in request.metadata or request.metadata.get(field_name) is None
         ]
         if not missing_fields:
             return None
@@ -227,25 +238,18 @@ class MultiAgentSupportPlatform:
         profile = self.intent_classifier.classify(request)
         if profile is None:
             if self._requires_human_handoff(request):
-                escalation = self.escalation_agent.escalate(
-                    profile=None,
-                    request=request,
-                    reason="The request could not be classified with enough confidence for automated handling.",
-                )
-                return SupportOutcome(
+                return self._build_unknown_outcome(
                     status="escalated",
-                    intent="unknown",
-                    knowledge_artifacts=[],
-                    recommended_actions=[],
-                    escalation=escalation,
+                    escalation=self.escalation_agent.escalate(
+                        profile=None,
+                        request=request,
+                        reason="The request could not be classified with enough confidence for automated handling.",
+                    ),
                 )
 
             follow_up = self.information_gatherer.gather(profile, request)
-            return SupportOutcome(
+            return self._build_unknown_outcome(
                 status="needs_information",
-                intent="unknown",
-                knowledge_artifacts=[],
-                recommended_actions=[],
                 follow_up=follow_up,
             )
 
@@ -302,3 +306,18 @@ class MultiAgentSupportPlatform:
             return True
 
         return str(request.metadata.get("severity", "")).lower() in {"high", "critical"}
+
+    @staticmethod
+    def _build_unknown_outcome(
+        status: str,
+        follow_up: FollowUpRequest | None = None,
+        escalation: HumanEscalation | None = None,
+    ) -> SupportOutcome:
+        return SupportOutcome(
+            status=status,
+            intent="unknown",
+            knowledge_artifacts=[],
+            recommended_actions=[],
+            follow_up=follow_up,
+            escalation=escalation,
+        )
