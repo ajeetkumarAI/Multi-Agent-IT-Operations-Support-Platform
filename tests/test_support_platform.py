@@ -158,6 +158,47 @@ class MultiAgentSupportPlatformTests(unittest.TestCase):
         self.assertEqual(outcome.intent, "unknown")
         self.assertEqual(outcome.escalation.team, "General Support Queue")
 
+    def test_escalates_known_intent_when_human_review_is_requested(self) -> None:
+        outcome = self.platform.process_request(
+            SupportRequest(
+                customer_id="CUST-900",
+                summary="Unable to unlock mobile banking account",
+                details="Customer cannot login after too many failed attempts and wants an agent to review.",
+                metadata={"account_id": "ACCT-10", "channel": "mobile", "requires_human": True},
+            )
+        )
+
+        self.assertEqual(outcome.status, "escalated")
+        self.assertEqual(outcome.intent, "account_unlock")
+        self.assertEqual(outcome.escalation.team, "Digital Banking Support")
+
+    def test_escalates_unknown_intent_when_human_review_is_requested(self) -> None:
+        outcome = self.platform.process_request(
+            SupportRequest(
+                customer_id="CUST-950",
+                summary="Need help",
+                details="Customer wants a human specialist to look at an unclear issue.",
+                metadata={"requires_human": True},
+            )
+        )
+
+        self.assertEqual(outcome.status, "escalated")
+        self.assertEqual(outcome.intent, "unknown")
+        self.assertEqual(outcome.escalation.team, "General Support Queue")
+
+    def test_does_not_escalate_when_requires_human_flag_is_false_string(self) -> None:
+        outcome = self.platform.process_request(
+            SupportRequest(
+                customer_id="CUST-975",
+                summary="Unable to unlock mobile banking account",
+                details="Customer cannot login after too many failed attempts and needs access restored.",
+                metadata={"account_id": "ACCT-11", "channel": "mobile", "requires_human": "false"},
+            )
+        )
+
+        self.assertEqual(outcome.status, "resolved")
+        self.assertEqual(outcome.intent, "account_unlock")
+
 
 if __name__ == "__main__":
     unittest.main()

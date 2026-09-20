@@ -4,6 +4,16 @@ from dataclasses import dataclass, field
 from typing import Any
 
 
+def _metadata_flag_is_true(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() in {"true", "1", "yes", "y"}
+    if isinstance(value, (int, float)):
+        return value == 1
+    return False
+
+
 @dataclass(frozen=True)
 class KnowledgeArtifact:
     title: str
@@ -137,18 +147,16 @@ class IntentClassifierAgent:
         if not matches:
             return None
 
-        top_match_count, top_match_ratio, top_confidence, top_profile = max(
-            matches,
-            key=lambda item: (item[0], item[1], item[2]),
+        best_score = max((match_count, match_ratio, confidence) for match_count, match_ratio, confidence, _ in matches)
+        top_profile = next(
+            profile
+            for match_count, match_ratio, confidence, profile in matches
+            if (match_count, match_ratio, confidence) == best_score
         )
         top_matches = [
             profile
             for match_count, match_ratio, confidence, profile in matches
-            if (
-                match_count == top_match_count
-                and match_ratio == top_match_ratio
-                and confidence == top_confidence
-            )
+            if (match_count, match_ratio, confidence) == best_score
         ]
         if len(top_matches) > 1:
             return None
@@ -211,7 +219,7 @@ class ResolutionAgent:
         if str(request.metadata.get("severity", "")).lower() == "critical":
             return None
 
-        if request.metadata.get("requires_human"):
+        if _metadata_flag_is_true(request.metadata.get("requires_human")):
             return None
 
         return list(profile.resolution_actions)
@@ -330,7 +338,7 @@ class MultiAgentSupportPlatform:
 
     @staticmethod
     def _requires_human_handoff(request: SupportRequest) -> bool:
-        if request.metadata.get("requires_human"):
+        if _metadata_flag_is_true(request.metadata.get("requires_human")):
             return True
 
         return str(request.metadata.get("severity", "")).lower() == "critical"
