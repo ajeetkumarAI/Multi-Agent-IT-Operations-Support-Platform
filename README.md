@@ -10,7 +10,7 @@ The Streamlit interface sends each operational question to `MainOrchestratorAgen
 
 ```mermaid
 flowchart TD
-	U[Support user] --> UI[Streamlit operations copilot]
+	U[Support user] --> UI[Multi Agent IT operations copilot]
 	UI --> O[MainOrchestratorAgent]
 
 	O --> R{Question router}
